@@ -213,26 +213,63 @@ function decrypt(code) {
   return JSON.parse(new TextDecoder().decode(raw.map(b => b ^ next())));
 }
 
-/* ============================== sonido ============================== */
-let muted = false, actx = null;
-function tone(freq, dur = .12, type = "sine", vol = .08, delay = 0) {
+/* ============================== sonido ==============================
+   Web Audio sintetizado (sin archivos). En iPhone el audio web se silencia con el
+   interruptor de silencio: por eso se pide la sesión de audio "playback" y se
+   desbloquea el contexto en el primer toque. */
+let muted = (() => { try { return localStorage.getItem("mmc-mute") === "1"; } catch { return false; } })();
+let actx = null, master = null;
+function audio() {
+  if (!actx) {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    actx = new AC();
+    const comp = actx.createDynamicsCompressor(); comp.threshold.value = -12; comp.ratio.value = 4;
+    master = actx.createGain(); master.gain.value = .9; master.connect(comp).connect(actx.destination);
+  }
+  if (actx.state !== "running") actx.resume().catch(() => {});
+  return actx;
+}
+let unlocked = false;
+function unlockAudio() {
+  if (unlocked) return; unlocked = true;
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch {}
+  const c = audio(); if (!c) return;
+  const buf = c.createBuffer(1, 1, 22050), src = c.createBufferSource(); src.buffer = buf; src.connect(c.destination); src.start(0);
+  // iOS < 17: un <audio> silencioso cambia la sesión a "reproducción" e ignora el interruptor
+  try { const el = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="); el.loop = true; el.volume = 0; el.setAttribute("playsinline", ""); el.play().catch(() => {}); } catch {}
+}
+["pointerdown", "touchend", "keydown"].forEach(ev => addEventListener(ev, unlockAudio, { passive: true }));
+
+/* nota con envolvente y barrido opcional de frecuencia */
+function tone(freq, dur = .12, type = "sine", vol = .2, delay = 0, to = null) {
   if (muted) return;
+  const c = audio(); if (!c) return;
   try {
-    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + delay;
-    o.type = type; o.frequency.value = freq; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + .02);
+    const t = c.currentTime + .01 + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t + dur + .05);
   } catch {}
 }
+const bell = (f, d = 0, v = .22) => { tone(f, .5, "sine", v, d); tone(f * 2, .3, "sine", v * .35, d); tone(f * 3, .18, "triangle", v * .12, d); };
+const PENTA = [523, 587, 659, 784, 880, 1047, 1175, 1319];
 const sfx = {
-  tap: () => tone(660, .06, "triangle", .05),
-  good: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .18, "triangle", .07, i * .08)),
-  bad: () => { tone(220, .18, "sawtooth", .04); tone(185, .22, "sawtooth", .04, .1); },
-  catch: () => tone(880 + Math.random() * 200, .07, "sine", .06),
+  tap:   () => tone(420, .07, "sine", .22, 0, 720),                                   // "pop" al tocar un botón
+  key:   () => tone(880, .05, "square", .06),                                         // teclado del candado
+  right: () => { bell(784); bell(1175, .09); },                                       // respuesta correcta
+  good:  () => [523, 659, 784, 1047, 1319].forEach((f, i) => bell(f, i * .085, .2)),   // nivel superado
+  bad:   () => { tone(260, .16, "square", .09, 0, 150); tone(180, .22, "square", .08, .12, 110); }, // error
+  catch: () => bell(PENTA[Math.random() * PENTA.length | 0], 0, .16),                 // atrapar corazón
+  hurt:  () => tone(300, .25, "sawtooth", .1, 0, 90),                                 // corazón roto
+  open:  () => { [392, 523, 659, 784, 1047].forEach((f, i) => bell(f, i * .12, .22)); tone(2093, .8, "sine", .05, .6); }, // candado abierto
+  pop:   (n) => tone(300 + n * 160, .16, "triangle", .2, 0, 600 + n * 200),          // tocar el regalo
+  tick:  () => tone(1600 + Math.random() * 300, .018, "square", .018),               // máquina de escribir
 };
+/* sonido automático para cualquier botón */
+document.addEventListener("pointerdown", e => { const b = e.target.closest("button"); if (b && !b.disabled && b.id !== "mute" && !b.dataset.nosnd) sfx.tap(); });
 const $mute = document.getElementById("mute");
 const drawMute = () => $mute.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#fff"/>${muted ? '<path d="M17 9l5 6M22 9l-5 6"/>' : '<path d="M17 8.5a5 5 0 0 1 0 7M19.5 6a8.5 8.5 0 0 1 0 12"/>'}</svg>`;
-$mute.onclick = () => { muted = !muted; drawMute(); };
+$mute.onclick = () => { muted = !muted; try { localStorage.setItem("mmc-mute", muted ? "1" : "0"); } catch {} drawMute(); if (!muted) sfx.right(); };
 drawMute();
 
 /* ============================== gráficos ============================== */
@@ -330,7 +367,7 @@ function inicio() {
     ${saved ? `<button class="btn ghost" id="reset">Empezar de nuevo</button>` : ""}
     <p class="center" style="font-size:12px;color:var(--ghost)">Hecho con amor (y código) por ${CONFIG.firma}</p>
   </section>`));
-  v.querySelector("#go").onclick = () => { sfx.tap(); saved ? (state.lv > N ? candado() : nivel(state.lv)) : reglas(); };
+  v.querySelector("#go").onclick = () => { saved ? (state.lv > N ? candado() : nivel(state.lv)) : reglas(); };
   if (saved) v.querySelector("#reset").onclick = () => { state = { lv: 1, digits: {} }; store.clear(); reglas(); };
 }
 
@@ -345,7 +382,7 @@ function reglas() {
   const v = show(h(`<section class="view"><h2 style="margin-top:24px">Cómo se juega</h2>
     <div style="display:flex;flex-direction:column;gap:12px">${items.map(([k, t]) => `<div class="glass" style="display:flex;gap:14px;align-items:center;padding:14px 16px"><span style="flex:none;width:40px;display:grid;place-items:center">${icon(k)}</span><p style="font-size:15px">${t}</p></div>`).join("")}</div>
     <div class="grow"></div><button class="btn" id="go">Estoy lista</button></section>`));
-  v.querySelector("#go").onclick = () => { sfx.tap(); nivel(1); };
+  v.querySelector("#go").onclick = () => { nivel(1); };
 }
 
 function exito(lv) {
@@ -359,7 +396,7 @@ function exito(lv) {
     ${digit ? `<div class="card digit"><div class="l">NÚMERO SECRETO</div><div class="n">${digit}</div></div><p class="sub" style="font-size:13.5px">Anótalo: es parte de la contraseña.</p>` : ""}
     <div class="grow"></div><button class="btn" id="go">${lv < N ? (lv === N - 1 ? "Último nivel" : "Siguiente nivel") : "Continuar"}</button></section>`));
   setTimeout(() => burst(innerWidth / 2, 230, 26), 150);
-  v.querySelector("#go").onclick = () => { sfx.tap(); lv < N ? nivel(lv + 1) : completa(); };
+  v.querySelector("#go").onclick = () => { lv < N ? nivel(lv + 1) : completa(); };
 }
 
 function win(lv) {
@@ -411,7 +448,7 @@ function n1(lv) {
       it.y += it.v * dt; it.a += it.r * dt;
       if (!it.hit && Math.abs(it.x - px) < 40 && Math.abs(it.y - by) < 22) {
         it.hit = true;
-        if (it.bad) { lives--; shake = .3; sfx.bad(); if (navigator.vibrate) navigator.vibrate(50); }
+        if (it.bad) { lives--; shake = .3; sfx.hurt(); if (navigator.vibrate) navigator.vibrate(50); }
         else { score += it.gold ? 2 : 1; sfx.catch(); const r = cv.getBoundingClientRect(); burst(r.left + it.x, r.top + it.y, 5); }
         stats();
       }
@@ -422,7 +459,7 @@ function n1(lv) {
     }
     items = items.filter(i => !i.hit && i.y < H + 30);
     basket(px + (shake > 0 ? (Math.random() - .5) * 10 : 0), by); shake -= dt;
-    if (score >= GOAL) { run = false; setTimeout(() => win(lv), 350); return; }
+    if (score >= GOAL) { run = false; sfx.right(); setTimeout(() => win(lv), 350); return; }
     if (lives <= 0) { run = false; fail(v, lv, box); ov.style.display = "grid"; ov.innerHTML = `<div style="display:grid;gap:14px;justify-items:center">${sym("broken", 54)}<p>Se rompieron 3 corazones.</p><button class="btn" id="again">Intentar de nuevo</button></div>`; ov.querySelector("#again").onclick = start; return; }
     raf = requestAnimationFrame(tick);
   }
@@ -435,7 +472,7 @@ function quiz(lv) {
   const v = frame(lv, q.titulo, q.sub, `<div class="glass"><p style="font:700 22px/1.3 var(--display);text-align:center">${q.q}</p></div>
     <div class="opts">${opts.map(([t, ok], i) => `<button class="opt" data-i="${i}">${t}</button>`).join("")}</div>`);
   v.querySelectorAll(".opt").forEach(b => b.onclick = () => {
-    if (opts[+b.dataset.i][1]) { b.classList.add("good"); burstAt(b, 14); setTimeout(() => win(lv), 500); } else fail(v, lv, b);
+    if (opts[+b.dataset.i][1]) { b.classList.add("good"); sfx.right(); burstAt(b, 14); setTimeout(() => win(lv), 500); } else fail(v, lv, b);
   });
 }
 
@@ -448,7 +485,7 @@ function n3(lv) {
      <p class="center" style="font-weight:800;font-size:12px;letter-spacing:.18em;color:var(--blush)">ELIGE UNA OPCIÓN</p>
      <div class="opts row">${opts.map(([[k, s]], i) => `<button class="opt white" data-i="${i}" style="height:110px">${sym(k, s)}</button>`).join("")}</div>`);
   v.querySelectorAll(".opt").forEach(b => b.onclick = () => {
-    if (opts[+b.dataset.i][1]) { v.querySelector(".qbox").innerHTML = sym("star", 30); burstAt(b, 14); setTimeout(() => win(lv), 600); } else fail(v, lv, b);
+    if (opts[+b.dataset.i][1]) { v.querySelector(".qbox").innerHTML = sym("star", 30); sfx.right(); burstAt(b, 14); setTimeout(() => win(lv), 600); } else fail(v, lv, b);
   });
 }
 
@@ -466,7 +503,7 @@ function n5(lv) {
     <div class="opts row">${"ABC".split("").map((l, i) => `<button class="opt" data-i="${i}" style="font:700 24px var(--display)">${l}</button>`).join("")}</div>`);
   v.querySelectorAll(".opt").forEach(b => b.onclick = () => {
     if (+b.dataset.i === 0) { const p = v.querySelector("#p0"); p.setAttribute("stroke", COL.gold); p.setAttribute("stroke-opacity", 1); p.setAttribute("stroke-width", 8);
-      const L = p.getTotalLength(); p.style.strokeDasharray = L; p.animate([{ strokeDashoffset: L }, { strokeDashoffset: 0 }], { duration: 900 }); setTimeout(() => win(lv), 1100); }
+      sfx.right(); const L = p.getTotalLength(); p.style.strokeDasharray = L; p.animate([{ strokeDashoffset: L }, { strokeDashoffset: 0 }], { duration: 900 }); setTimeout(() => win(lv), 1100); }
     else fail(v, lv, b);
   });
 }
@@ -479,7 +516,7 @@ function n6(lv) {
     `<div class="card"><p class="eyebrow" style="color:var(--muted);margin-bottom:14px">Clave</p><div class="keygrid">${KEY.map(([k, l]) => `<div>${sym(k, 24)}= ${l}</div>`).join("")}</div></div>
      <div class="glass msg">${["heart", "star", null, "circle", "diamond", "triangle"].map(k => k ? sym(k, 34) : '<span class="sp"></span>').join("")}</div>
      <div class="opts row">${opts.map(([t], i) => `<button class="opt" data-i="${i}" style="font:700 16px var(--mono);padding:18px 6px">${t}</button>`).join("")}</div>`);
-  v.querySelectorAll(".opt").forEach(b => b.onclick = () => { if (opts[+b.dataset.i][1]) { b.classList.add("good"); burstAt(b, 18); setTimeout(() => win(lv), 600); } else fail(v, lv, b); });
+  v.querySelectorAll(".opt").forEach(b => b.onclick = () => { if (opts[+b.dataset.i][1]) { b.classList.add("good"); sfx.right(); burstAt(b, 18); setTimeout(() => win(lv), 600); } else fail(v, lv, b); });
 }
 
 // 7 · Memoria real (las figuras se esconden)
@@ -496,10 +533,10 @@ function n7(lv) {
     await wait(4500); if (!document.body.contains(v)) return;
     tm.style.visibility = "hidden"; sl.innerHTML = MEM.map(() => `<div class="slot"></div>`).join("");
     let pos = 0;
-    pal.innerHTML = shuffle(MEM).map(k => `<button class="opt white" data-k="${k}" style="width:62px;height:62px;min-height:0;padding:0">${sym(k, 34)}</button>`).join("");
+    pal.innerHTML = shuffle(MEM).map(k => `<button class="opt white" data-nosnd="1" data-k="${k}" style="width:62px;height:62px;min-height:0;padding:0">${sym(k, 34)}</button>`).join("");
     pal.querySelectorAll("button").forEach(b => b.onclick = () => {
-      if (b.dataset.k === MEM[pos]) { sfx.tap(); sl.children[pos].innerHTML = sym(b.dataset.k, 34); b.style.visibility = "hidden"; pos++;
-        if (pos === MEM.length) { burstAt(sl, 20); setTimeout(() => win(lv), 600); } }
+      if (b.dataset.k === MEM[pos]) { sfx.key(); sl.children[pos].innerHTML = sym(b.dataset.k, 34); b.style.visibility = "hidden"; pos++;
+        if (pos === MEM.length) { sfx.right(); burstAt(sl, 20); setTimeout(() => win(lv), 600); } }
       else { fail(v, lv, sl); pal.innerHTML = ""; again.style.display = "block"; }
     });
   }
@@ -514,9 +551,9 @@ function n9(lv) {
      <div class="sum"><b id="s">0</b> <span>/ 19</span></div></div>`);
   const out = v.querySelector("#s");
   v.querySelectorAll(".bulb").forEach(b => b.onclick = () => {
-    const i = +b.dataset.i; on[i] ^= 1; b.classList.toggle("on", !!on[i]); sfx.tap();
+    const i = +b.dataset.i; on[i] ^= 1; b.classList.toggle("on", !!on[i]);
     const s = vals.reduce((a, n, k) => a + n * on[k], 0); out.textContent = s;
-    if (s === 19) { v.querySelectorAll(".bulb").forEach(x => x.disabled = true); burstAt(out, 24); setTimeout(() => win(lv), 900); }
+    if (s === 19) { sfx.right(); v.querySelectorAll(".bulb").forEach(x => x.disabled = true); burstAt(out, 24); setTimeout(() => win(lv), 900); }
     else if (s > 19) fail(v, lv, out);
   });
 }
@@ -528,7 +565,7 @@ function completa() {
     <p class="sub" style="font-size:16.5px;color:#fff">Encendiste las 9 estrellas. Solo falta abrir el candado con tus 4 números secretos.</p>
     <div class="grow"></div><button class="btn" id="go">Ir al candado</button></section>`));
   burst(innerWidth / 2, 260, 40); sfx.good();
-  v.querySelector("#go").onclick = () => { sfx.tap(); candado(); };
+  v.querySelector("#go").onclick = () => { candado(); };
 }
 
 function candado() {
@@ -537,11 +574,11 @@ function candado() {
   const v = show(h(`<section class="view" style="gap:16px"><div class="center" style="margin-top:14px">${padlock()}</div>
     <h2>El candado</h2><p class="sub">Escribe tus 4 números secretos, en el orden en que los ganaste.</p>
     <div class="slots4" id="sl">${"<div></div>".repeat(4)}</div><p class="hint"></p>
-    <div class="keys">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "⌫", 0, ""].map(k => k === "" ? "<span></span>" : `<button class="key" data-k="${k}">${k}</button>`).join("")}</div></section>`));
+    <div class="keys">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "⌫", 0, ""].map(k => k === "" ? "<span></span>" : `<button class="key" data-nosnd="1" data-k="${k}">${k}</button>`).join("")}</div></section>`));
   const sl = v.querySelector("#sl"), hint = v.querySelector(".hint");
   const draw = () => [...sl.children].forEach((d, i) => { d.textContent = code[i] ? "•" : ""; d.className = code[i] ? "f" : ""; });
   v.querySelectorAll(".key").forEach(b => b.onclick = () => {
-    const k = b.dataset.k; sfx.tap();
+    const k = b.dataset.k; sfx.key();
     if (k === "⌫") code = code.slice(0, -1); else if (code.length < 4) code += k;
     draw();
     if (code.length === 4) {
@@ -555,7 +592,7 @@ function candado() {
 
 let S = null; // secreto descifrado
 function abierto(code) {
-  S = decrypt(code); sfx.good(); floatOn = true;
+  S = decrypt(code); sfx.open(); floatOn = true;
   const v = show(h(`<section class="view"><div class="center" style="margin-top:18px">${padlock()}</div>
     <p class="eyebrow">¡Candado abierto!</p><div class="big">${code}</div>
     <div class="glass center" style="display:grid;gap:8px">${S.candado.map((l, i) => `<p style="${i === 0 ? "font-weight:800" : "color:var(--blush);font-size:15px"}">${l}</p>`).join("")}
@@ -563,21 +600,21 @@ function abierto(code) {
     <div class="grow"></div><button class="btn" id="go">Abrir mi regalo</button></section>`));
   requestAnimationFrame(() => setTimeout(() => v.querySelector(".lock").classList.add("open"), 200));
   burst(innerWidth / 2, 150, 30);
-  v.querySelector("#go").onclick = () => { sfx.tap(); regalo(); };
+  v.querySelector("#go").onclick = () => { regalo(); };
 }
 
 function regalo() {
   let taps = 0;
   const v = show(h(`<section class="view"><p class="eyebrow" style="margin-top:40px">Tu premio</p><p class="sub" id="gh">Toca el regalo 3 veces para abrirlo</p>
     <div class="grow"></div>
-    <button class="gift" id="g" aria-label="Regalo"><svg width="220" height="220" viewBox="0 0 220 220">
+    <button class="gift" id="g" data-nosnd="1" aria-label="Regalo"><svg width="220" height="220" viewBox="0 0 220 220">
       <rect x="30" y="90" width="160" height="120" rx="12" fill="#ff5a8f"/><rect x="18" y="68" width="184" height="40" rx="10" fill="#e23d74"/>
       <rect x="96" y="68" width="28" height="142" fill="${COL.gold}"/>
       <ellipse cx="80" cy="54" rx="34" ry="14" transform="rotate(25 80 54)" fill="${COL.gold}"/><ellipse cx="140" cy="54" rx="34" ry="14" transform="rotate(-25 140 54)" fill="${COL.gold}"/><circle cx="110" cy="64" r="12" fill="${COL.gold}"/></svg></button>
     <div class="grow"></div></section>`));
   const g = v.querySelector("#g");
   g.onclick = () => {
-    taps++; g.classList.remove("hit"); void g.offsetWidth; g.classList.add("hit"); burstAt(g, 8 + taps * 8); tone(500 + taps * 150, .15, "triangle", .07);
+    taps++; g.classList.remove("hit"); void g.offsetWidth; g.classList.add("hit"); burstAt(g, 8 + taps * 8); sfx.pop(taps);
     v.querySelector("#gh").textContent = taps === 1 ? "¡Otra vez!" : taps === 2 ? "¡Una más!" : "";
     if (taps === 3) { sfx.good(); for (let i = 0; i < 4; i++) setTimeout(() => burst(Math.random() * innerWidth, Math.random() * innerHeight * .6, 22), i * 160); setTimeout(carta, 1200); }
   };
@@ -589,9 +626,9 @@ function carta() {
   const t = v.querySelector("#t"), txt = S.carta; let i = 0, timer;
   const finish = () => { clearInterval(timer); t.textContent = txt; t.classList.remove("typing"); v.querySelector("#sg").style.opacity = 1;
     v.querySelector("#seal").classList.add("show"); v.querySelector("#st").style.opacity = 1; };
-  timer = setInterval(() => { t.textContent = txt.slice(0, ++i); if (i % 3 === 0) tone(1200, .015, "square", .012); if (i >= txt.length) finish(); }, 38);
+  timer = setInterval(() => { t.textContent = txt.slice(0, ++i); if (i % 3 === 0 && txt[i - 1] !== " ") sfx.tick(); if (i >= txt.length) finish(); }, 38);
   v.querySelector(".letter").onclick = () => { if (t.classList.contains("typing")) finish(); };
-  v.querySelector("#seal").onclick = e => { e.stopPropagation(); sfx.good(); pd(); };
+  v.querySelector("#seal").onclick = e => { e.stopPropagation(); sfx.open(); pd(); };
 }
 
 function pd() {
