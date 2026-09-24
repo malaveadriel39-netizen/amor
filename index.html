@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#120822">
+<title>Misión: Mi Corazón</title>
+<meta property="og:title" content="Tengo algo para ti">
+<meta property="og:description" content="Un juego que hice solo para ti. Supera los 9 niveles y descubre el secreto.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,400&family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#120822;--plum:#3b1240;--wine:#8a2b5e;--low:#c94a7e;
+  --rose:#ff4f7e;--roseD:#c92f5d;--blush:#ffd6e1;--gold:#f5c16c;--goldD:#c9913a;
+  --cream:#fff8f2;--ink:#2e0f2a;--muted:#8b6680;--ghost:#b99ab0;
+  --sky:#6fb3ff;--lilac:#b58cff;--mint:#4fcf9a;--orange:#ff9a4d;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+  --body:"Nunito","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--night);overflow-x:hidden}
+body{font-family:var(--body);color:#fff;background:linear-gradient(180deg,var(--night) 0%,var(--plum) 50%,var(--wine) 82%,var(--low) 100%) fixed;
+  min-height:100dvh;overflow-x:hidden;user-select:none;-webkit-user-select:none}
+#sky{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#app{position:relative;z-index:1;max-width:440px;margin:0 auto;min-height:100dvh;
+  padding:calc(env(safe-area-inset-top,0px) + 18px) 18px calc(env(safe-area-inset-bottom,0px) + 24px);display:flex;flex-direction:column}
+.view{display:flex;flex-direction:column;gap:18px;flex:1;animation:in .45s cubic-bezier(.2,.9,.3,1)}
+@keyframes in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+h1,h2{font-family:var(--display);font-weight:700;margin:0;text-wrap:balance;line-height:1.1}
+h1{font-size:44px}h2{font-size:28px;text-align:center}
+p{margin:0;line-height:1.5}
+.sub{color:var(--blush);text-align:center;font-size:15.5px;text-wrap:balance}
+.eyebrow{font-weight:800;font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);text-align:center}
+.center{text-align:center}.grow{flex:1}
+.card{background:var(--cream);color:var(--ink);border-radius:22px;padding:22px}
+.glass{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:18px}
+.btn{appearance:none;border:0;font:800 17px var(--body);color:#fff;background:var(--rose);border-radius:999px;padding:16px 28px;
+  box-shadow:0 5px 0 var(--roseD),0 12px 26px rgba(255,79,126,.35);cursor:pointer;align-self:center;min-width:230px;transition:transform .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--roseD)}
+.btn.ghost{background:transparent;border:1.5px solid rgba(255,255,255,.55);box-shadow:none}
+.btn:focus-visible,.opt:focus-visible,.key:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.opts{display:flex;flex-direction:column;gap:12px}
+.opts.row{flex-direction:row;justify-content:space-between}
+.opts.row .opt{flex:1}
+.opt{appearance:none;border:0;background:var(--blush);color:var(--ink);font:800 18px var(--body);border-radius:16px;padding:18px 14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;min-height:60px;transition:transform .1s,background .2s}
+.opt:active{transform:scale(.97)}
+.opt.good{background:var(--gold)}
+.opt.white{background:var(--cream)}
+.shake{animation:shake .45s}
+@keyframes shake{20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+.hint{min-height:44px;text-align:center;color:var(--blush);font-size:14.5px;opacity:0;transition:opacity .3s}
+.hint.show{opacity:1}
+.hint b{color:var(--gold)}
+/* HUD */
+.hud{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px 12px}
+.hud .lvl{font-weight:800;font-size:11px;letter-spacing:.22em;color:var(--blush)}
+.bar{grid-column:1/-1;display:flex;gap:5px}
+.bar i{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.18);transition:background .4s}
+.bar i.on{background:var(--gold)}
+#mute{position:fixed;right:max(12px,calc(50% - 220px + 12px));bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:5;width:40px;height:40px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.25);background:rgba(18,8,34,.5);color:#fff;display:grid;place-items:center;cursor:pointer}
+/* Constelación */
+.const line{stroke-linecap:round}
+.const .lit{animation:pop .7s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+/* Nivel 1 */
+.game{position:relative;border-radius:20px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);touch-action:none}
+.game canvas{display:block;width:100%;height:100%}
+.gstats{display:flex;justify-content:space-between;font-weight:800;font-size:15px}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(18,8,34,.72);text-align:center;padding:20px;gap:12px}
+/* símbolos */
+.seq{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.qbox{width:52px;height:56px;border:2px dashed var(--gold);border-radius:12px;display:grid;place-items:center;font:700 28px var(--display);color:var(--gold)}
+.keygrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 6px}
+.keygrid div{display:flex;align-items:center;gap:6px;font:700 18px var(--mono);color:var(--ink)}
+.msg{display:flex;justify-content:center;gap:12px;align-items:center}
+.msg .sp{width:14px}
+/* memoria */
+.slots{display:flex;justify-content:center;gap:10px}
+.slot{width:54px;height:54px;border-radius:14px;background:rgba(255,255,255,.1);display:grid;place-items:center}
+.timer{height:5px;border-radius:3px;background:var(--gold);transform-origin:left}
+/* focos */
+.bulbs{display:flex;justify-content:space-between;gap:4px}
+.bulb{flex:1;min-width:0;appearance:none;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;color:#fff;font:inherit}
+.bulb .g{width:46px;height:46px;border-radius:50%;background:#5a3a5c;display:grid;place-items:center;font:700 17px var(--mono);transition:all .25s}
+.bulb.on .g{background:var(--gold);color:var(--ink);box-shadow:0 0 0 6px rgba(245,193,108,.2),0 0 24px rgba(245,193,108,.55)}
+.bulb .base{width:22px;height:12px;border-radius:2px 2px 6px 6px;background:#9a8aa0;margin-top:-6px}
+.bulb small{font-weight:800;font-size:8.5px;letter-spacing:.04em;color:var(--ghost)}
+.bulb.on small{color:var(--gold)}
+.sum{font:700 40px var(--mono);text-align:center}
+.sum span{color:var(--ghost);font-size:22px}
+/* éxito */
+.digit{align-self:center;text-align:center;padding:16px 38px}
+.digit .n{font:700 46px var(--mono);color:var(--rose);line-height:1.1}
+.digit .l{font-weight:800;font-size:10.5px;letter-spacing:.2em;color:var(--muted)}
+.quote{font-family:var(--display);font-style:italic;font-size:18px;color:var(--blush);text-align:center;text-wrap:balance}
+/* candado */
+.slots4{display:flex;justify-content:center;gap:12px}
+.slots4 div{width:52px;height:60px;border-radius:12px;background:rgba(255,255,255,.12);display:grid;place-items:center;font:700 28px var(--mono)}
+.slots4 div.f{background:var(--cream);color:var(--ink)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.key{appearance:none;border:0;border-radius:16px;background:rgba(255,255,255,.12);color:#fff;font:700 24px var(--mono);height:62px;cursor:pointer}
+.key:active{background:rgba(255,255,255,.24)}
+.lock .shackle{transition:transform .6s cubic-bezier(.3,1.6,.5,1)}
+.lock.open .shackle{transform:translateY(-16px)}
+.big{font:700 72px var(--mono);text-align:center;letter-spacing:.06em}
+/* regalo */
+.gift{align-self:center;cursor:pointer;background:none;border:0;padding:0;animation:float 2.4s ease-in-out infinite}
+.gift.hit{animation:wobble .45s}
+@keyframes float{50%{transform:translateY(-10px)}}
+@keyframes wobble{25%{transform:rotate(-10deg) scale(1.06)}50%{transform:rotate(8deg) scale(1.1)}75%{transform:rotate(-4deg)}}
+/* carta */
+.letter{background:var(--cream);color:var(--ink);border-radius:10px;padding:26px 22px 22px;
+  background-image:repeating-linear-gradient(transparent 0 30px,#f2d3dc 30px 31px);background-position:0 18px;box-shadow:0 20px 50px rgba(0,0,0,.4);
+  animation:unfold .9s cubic-bezier(.2,1.1,.3,1)}
+@keyframes unfold{from{transform:scaleY(.05) translateY(120px);opacity:0}to{transform:none;opacity:1}}
+.letter .to{font-weight:800;font-size:10.5px;letter-spacing:.24em;color:var(--muted);text-align:center;margin-bottom:10px}
+.letter .txt{font-family:var(--display);font-style:italic;font-size:17px;line-height:31px;white-space:pre-wrap;min-height:300px}
+.letter .txt.typing::after{content:"|";color:var(--rose);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.letter .sign{font-family:var(--display);font-style:italic;font-size:22px;color:var(--rose);text-align:right;opacity:0;transition:opacity 1s}
+.seal{appearance:none;border:0;align-self:center;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle,#9a1f44 0 58%,#b3264f 60%);
+  display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.3);opacity:0;transform:scale(.6);transition:all .5s}
+.seal.show{opacity:1;transform:none}
+.sealtxt{font-size:12px;color:var(--muted);text-align:center;opacity:0;transition:opacity .5s}
+.ticket{position:relative;background:var(--cream);color:var(--ink);border-radius:18px;padding:34px 24px;text-align:center}
+.ticket::before{content:"";position:absolute;inset:12px;border:1.5px dashed var(--rose);border-radius:10px;pointer-events:none}
+.ticket h3{font:700 22px/1.3 var(--display);margin:10px 0 14px;text-wrap:balance}
+.ticket small{font-family:var(--display);font-style:italic;color:var(--muted);font-size:14px}
+.tl{position:relative;display:flex;flex-direction:column;gap:30px;padding-left:44px}
+.tl::before{content:"";position:absolute;left:15px;top:8px;bottom:8px;width:2px;background:rgba(245,193,108,.5)}
+.tl .ev{position:relative}
+.tl .dot{position:absolute;left:-44px;top:0;width:32px;height:32px;border-radius:50%;background:var(--plum);display:grid;place-items:center}
+.tl .d{font-weight:800;font-size:11px;letter-spacing:.2em;color:var(--gold)}
+.tl h4{font:700 20px var(--display);margin:4px 0}
+.tl p{color:var(--blush);font-size:15px}
+.burst{position:fixed;pointer-events:none;z-index:9;will-change:transform,opacity}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<main id="app"></main>
+<button id="mute" aria-label="Sonido"></button>
+<script>
+"use strict";
+/* ============================================================
+   CONFIGURACIÓN VISIBLE (los textos secretos van cifrados abajo)
+   ============================================================ */
+const CONFIG = {
+  nombre: "Mi amor",
+  firma: "Adriel",
+  nivelesConNumero: [2, 4, 6, 8],        // cada uno entrega un dígito de la contraseña
+  preguntas: {
+    2: { titulo: "El primer mensaje", sub: "Pregunta sobre nosotros.", q: "¿Qué día te escribí por primera vez?",
+         bien: "2 de septiembre de 2023", mal: ["19 de noviembre de 2023", "16 de octubre de 2023"] },
+    4: { titulo: "Pregunta de chef", sub: "Esta tienes que saberla.", q: "¿Cuál es mi comida favorita?",
+         bien: "Ceviche", mal: ["Pizza", "Hamburguesa"] },
+    8: { titulo: "Confesión de gamer", sub: "No soy muy romántico, pero...", q: "¿Qué me gusta más que los videojuegos?",
+         bien: "Tú", mal: ["Dormir", "El ceviche"] }
+  },
+  ok: {
+    1: "Atrapaste todos. Igual que atrapaste el mío.",
+    2: "Ese fue el mejor mensaje que he enviado en mi vida.",
+    3: "Tienes ojo para los detalles.",
+    4: "Ceviche, siempre. Aunque sé que tú no eres tan fan.",
+    5: "Todos los caminos me llevan a ti.",
+    6: "Descifraste el mensaje. Ahora ya lo sabes.",
+    7: "Buena memoria. Yo tampoco olvido ningún momento contigo.",
+    8: "Obvio. Y eso que los videojuegos me gustan mucho.",
+    9: "19, el día en que te pedí ser mi novia. En binario: 10011."
+  },
+  pista: {
+    1: "Mueve la canasta con el dedo. Esquiva los corazones rotos.",
+    2: "Piensa en el día en que empezó todo.",
+    3: "Se alternan corazón y estrella. ¿La estrella cambia de tamaño?",
+    4: "Es del mar y lleva limón.",
+    5: "Sigue cada línea con el dedo desde su letra, sin saltar.",
+    6: "Cambia cada figura por su letra, en orden.",
+    7: "Mira bien el orden y vuelve a intentarlo.",
+    8: "Piensa en quién está jugando esto ahora mismo.",
+    9: "Busca qué focos suman 19. Empieza por el más grande."
+  }
+};
+/* Generado por build.py — no editar a mano */
+const SECRETO = "TWZ5Pq4joHP7YTxeJwu/F36FPnyTqbODyBR02H5iKz8YBKlud9eaXHPxVowCFFchLjjQguGu1iNpoDbj7qaiGI640ddpv1ptp71e18iWiHAYkYHsL0QW51fyDD3IzoJPvYRQjJVoDcq1et3DReVW2BP6Qz0AinQmOdK4qdb58e4rpxoJVH+Ih+Qf8uA+hw75/xNzVzEUB5ac0RNCsYCT9sHs4jep9ZZE3F4LbfvK9iwYBXkWK5JSy3jtWzei92IZKgvvaFqgKplNnnwhCKmFc/UIa8mUG4NlCDJoog/LsPl++eLWioMH+ZTGqlIjqLIRNuJA6j5LnGsdcP0B/VE02tbnqcje8ZDFeiFwy5i4g+VuqRhifGVcF0G4hO13Odt1NAmTYKOmoyqC1nVBIo9kdFxIlr9XDziTwfs9qQRlyiHD0wEjKYDw1mQqlkCotd+MP98SzvTriT4Jnve24K+hZUqW62i2YfN5nDaitSPe7ZQ4DbOVD3gDweubMACMK4gcoUSGquoo/YcQjvLFglDTpiZp9wbcx4Fs3BcPg8grDPQxYzC4u3ojxd5HWM/ds4P+GHn4sIQYUKuwKdYhu6vyNJrFlfLbAx5HSgcZZR5iB6L1LniFLQlmaI4r3R8ZvD4olxCVIlhWthunLuVlfzHD/77Gx/7Evkc3vy8tKAw9dkLuDyuUmDam7V0pkykae3eE5JZsVgI7s4/9/JPJPUJwcidVkrFPIqx2MqDtPF+QJatnODtYWTGBL4d97rPQBw+1UySxpDJgANME0WOzbBKGLNEMPhZrz5c7PCD4Uuk2N8P8N56w0zzYUbM/AhtZ2xlL2pBUTXPmkVrqY+qMIJA81FAV10w0I4WEaCKk47S7nnyJghSbiuzIcQvBKmLjiX3Xal8UZWmFtAVbOrUyS7b8WwDuA66KBAqhP50VUWuQ0/RouN9e1/ZJql5ffme6AA9WaHUhUxi2PquTCk+Q0MK0FT7Ls9x6enlZkYvS2a0Xl2ttDUUliLhS/G/qvEAdb5QDRxJtdFXU8rrN7qEWLWcWJxqPkVpopsjEi6bchCIxg6BmsIT6m31UBzF/65DNpjDACVbGQvT6L9th+XFG6iI/qQUQ4qA2tqXD+QYk+e2ngo0DT8FpTs7lBWHg9bcMTcdbx6ckDaxvCEJhf6UeuyYY9Brp1k6zLyC7f1PaPsXFg8L3MJJAcwoOU0TndeV9joSfI1jVaJO5Kj8Fp45vhltXWMayrZMUHe+nOs9jgqgZc8ytLnfk4WNqooeiLNmK+86jsANKoTeEGti4qP+LOITyVNJRDX+fapZ4lr9BrZm4wblkWD15/acEUetadymjrrY03Xm3839KXxh6oc+hk7AE3dYZnn5ewfMGNvMYuDPUJGb5tbC9yMrQroNAyt8okYT9u4gkbFMnrZsObgTlgKTgVd5T4OcQUJ8djV5ylBrstb0pcu1uWXpDErSRZMAMWxYEOe6gS+5PGh9Mk6frMliXRwdNy7y2FaBu1yTgtVowkXnO5+G7L4PBqFkrZ9bM7AMKo+hLk2eOBXNKB9z6Nh219vLC4XW+6FHKF5DZmGnJiktm1LvRj8tXuBFWWZ+8MoHcEwMn0j4Zj8w510J88CY2ZrpEfxr39e8jIy0KOsLk0m2H6kQjK9SuhhuiD29bHMO0o/IZfRkOgBkH7+CgmdqZj/g84A==";
+const CHECK = 1277204094;
+const N = 9;
+
+/* ============================== utilidades ============================== */
+const $app = document.getElementById("app");
+const h = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem("mmc") || "null"); } catch { return null; } },
+  set(v) { try { localStorage.setItem("mmc", JSON.stringify(v)); } catch {} },
+  clear() { try { localStorage.removeItem("mmc"); } catch {} }
+};
+let state = store.get() || { lv: 1, digits: {} };
+
+/* Cifrado ligero: FNV-1a + keystream mulberry32 (mismo algoritmo en build.py) */
+function fnv(str) { let x = 0x811c9dc5; for (const b of new TextEncoder().encode(str)) { x ^= b; x = Math.imul(x, 16777619) >>> 0; } return x >>> 0; }
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) >>> 24; }; }
+function decrypt(code) {
+  const raw = Uint8Array.from(atob(SECRETO), c => c.charCodeAt(0)); const next = mulberry32(fnv(code + "|mmc"));
+  return JSON.parse(new TextDecoder().decode(raw.map(b => b ^ next())));
+}
+
+/* ============================== sonido ============================== */
+let muted = false, actx = null;
+function tone(freq, dur = .12, type = "sine", vol = .08, delay = 0) {
+  if (muted) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + delay;
+    o.type = type; o.frequency.value = freq; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + .02);
+  } catch {}
+}
+const sfx = {
+  tap: () => tone(660, .06, "triangle", .05),
+  good: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .18, "triangle", .07, i * .08)),
+  bad: () => { tone(220, .18, "sawtooth", .04); tone(185, .22, "sawtooth", .04, .1); },
+  catch: () => tone(880 + Math.random() * 200, .07, "sine", .06),
+};
+const $mute = document.getElementById("mute");
+const drawMute = () => $mute.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#fff"/>${muted ? '<path d="M17 9l5 6M22 9l-5 6"/>' : '<path d="M17 8.5a5 5 0 0 1 0 7M19.5 6a8.5 8.5 0 0 1 0 12"/>'}</svg>`;
+$mute.onclick = () => { muted = !muted; drawMute(); };
+drawMute();
+
+/* ============================== gráficos ============================== */
+const COL = { rose: "#ff4f7e", gold: "#f5c16c", sky: "#6fb3ff", lilac: "#b58cff", mint: "#4fcf9a", orange: "#ff9a4d", ghost: "#b99ab0", blush: "#ffd6e1" };
+const HEART_D = "M12 21.2s-7.6-4.7-9.7-9.4C.8 8.3 2.9 4.4 6.6 4.4c2.1 0 3.7 1.2 5.4 3.3 1.7-2.1 3.3-3.3 5.4-3.3 3.7 0 5.8 3.9 4.3 7.4-2.1 4.7-9.7 9.4-9.7 9.4z";
+const starPts = (cx, cy, r) => Array.from({ length: 10 }, (_, i) => { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; return `${(cx + rr * Math.cos(a)).toFixed(2)},${(cy + rr * Math.sin(a)).toFixed(2)}`; }).join(" ");
+const SYM = {
+  heart: `<path d="${HEART_D}" fill="${COL.rose}"/><ellipse cx="7.3" cy="8.6" rx="1.8" ry="1.2" fill="#fff" opacity=".35"/>`,
+  star: `<polygon points="${starPts(12, 12.6, 10.5)}" fill="${COL.gold}"/>`,
+  circle: `<circle cx="12" cy="12" r="8.5" fill="${COL.sky}"/>`,
+  diamond: `<path d="M12 2 20 12 12 22 4 12z" fill="${COL.lilac}"/>`,
+  triangle: `<path d="M12 3.5 21.5 20h-19z" fill="${COL.mint}"/>`,
+  square: `<rect x="4" y="4" width="16" height="16" rx="3" fill="${COL.orange}"/>`,
+  ring: `<circle cx="12" cy="12" r="7" fill="none" stroke="${COL.sky}" stroke-width="3.5"/>`,
+  plus: `<path d="M9.5 3h5v6.5H21v5h-6.5V21h-5v-6.5H3v-5h6.5z" fill="${COL.lilac}"/>`,
+  broken: `<path d="${HEART_D}" fill="${COL.ghost}"/><path d="M12 7.6 10.4 11l2.6 2-1.8 3.4" stroke="#3b1240" stroke-width="1.4" fill="none" stroke-linejoin="round"/>`,
+  ghoststar: `<polygon points="${starPts(12, 12.6, 10.5)}" fill="${COL.ghost}"/>`,
+};
+const sym = (k, s = 40) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true">${SYM[k]}</svg>`;
+
+// Constelación en forma de corazón (9 estrellas; el vértice 5 es la hendidura)
+const V = [[0, -1], [-.55, -.42], [-.97, .12], [-.86, .7], [-.42, .92], [0, .52], [.42, .92], [.86, .7], [.97, .12], [.55, -.42]];
+const STARS = [0, 1, 2, 3, 4, 6, 7, 8, 9];
+function constellation(lit, size = 200, animateLast = false, heartFill = false) {
+  const s = 100, pts = V.map(([x, y]) => [120 + x * s, 115 - y * s]);
+  const on = v => v === 5 ? lit >= 6 : STARS.indexOf(v) < lit;
+  let g = "";
+  if (heartFill) g += `<path d="${HEART_D}" transform="translate(60 52) scale(5)" fill="${COL.rose}" opacity=".95"/>`;
+  pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length], l = on(i) && on((i + 1) % pts.length);
+    g += `<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${l ? COL.gold : "#fff"}" stroke-opacity="${l ? .9 : .25}" stroke-width="${l ? 2.5 : 1.5}" ${l ? "" : 'stroke-dasharray="4 5"'}/>`; });
+  STARS.forEach((v, n) => { const [x, y] = pts[v];
+    if (n < lit) { const cls = animateLast && n === lit - 1 ? ' class="lit"' : "";
+      g += `<g${cls} style="transform-origin:${x}px ${y}px"><circle cx="${x}" cy="${y}" r="15" fill="${COL.gold}" opacity=".22"/><polygon points="${starPts(x, y, 10)}" fill="${COL.gold}"/></g>`; }
+    else g += `<circle cx="${x}" cy="${y}" r="3.2" fill="#fff" opacity=".5"/>`; });
+  return `<svg class="const" viewBox="0 0 240 240" width="${size}" height="${size}" style="overflow:visible">${g}</svg>`;
+}
+const padlock = (open = false) => `<svg class="lock${open ? " open" : ""}" viewBox="0 0 100 110" width="96" height="106" style="overflow:visible;margin-top:18px">
+  <path class="shackle" d="M26 52V34a24 24 0 0 1 48 0v18" fill="none" stroke="${COL.gold}" stroke-width="10" stroke-linecap="round"/>
+  <rect x="10" y="48" width="80" height="58" rx="12" fill="${COL.gold}"/><path d="${HEART_D}" transform="translate(38 64) scale(1)" fill="#c9913a"/></svg>`;
+
+/* partículas de corazones */
+function burst(x, y, n = 18) {
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement("div"); el.className = "burst";
+    const k = ["heart", "heart", "star"][i % 3], s = 14 + Math.random() * 18;
+    el.innerHTML = sym(k, s); el.style.left = (x - s / 2) + "px"; el.style.top = (y - s / 2) + "px";
+    document.body.appendChild(el);
+    const a = Math.random() * Math.PI * 2, d = 70 + Math.random() * 150;
+    el.animate([{ transform: "translate(0,0) scale(.4)", opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d + 60}px) scale(1) rotate(${Math.random() * 90 - 45}deg)`, opacity: 0 }],
+      { duration: 900 + Math.random() * 600, easing: "cubic-bezier(.2,.8,.3,1)" }).onfinish = () => el.remove();
+  }
+}
+const burstAt = (el, n) => { const r = el.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, n); };
+
+/* cielo animado */
+const sky = document.getElementById("sky"), sctx = sky.getContext("2d");
+let stars = [], floaters = [], floatOn = false;
+function resizeSky() { const d = Math.min(devicePixelRatio || 1, 2); sky.width = innerWidth * d; sky.height = innerHeight * d; sctx.setTransform(d, 0, 0, d, 0, 0);
+  stars = Array.from({ length: 90 }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight * .75, r: Math.random() * 1.4 + .3, p: Math.random() * 6 })); }
+addEventListener("resize", resizeSky); resizeSky();
+(function loop(t) {
+  sctx.clearRect(0, 0, innerWidth, innerHeight);
+  for (const s of stars) { sctx.globalAlpha = .3 + .6 * Math.abs(Math.sin(t / 900 + s.p)); sctx.fillStyle = "#fff"; sctx.beginPath(); sctx.arc(s.x, s.y, s.r, 0, 7); sctx.fill(); }
+  if (floatOn && Math.random() < .05) floaters.push({ x: Math.random() * innerWidth, y: innerHeight + 20, v: 30 + Math.random() * 40, s: 10 + Math.random() * 16, w: Math.random() * 6 });
+  for (const f of floaters) { f.y -= f.v / 60; sctx.globalAlpha = Math.min(.55, f.y / innerHeight); drawHeart(sctx, f.x + Math.sin(t / 700 + f.w) * 10, f.y, f.s, COL.rose); }
+  floaters = floaters.filter(f => f.y > -30); sctx.globalAlpha = 1;
+  requestAnimationFrame(loop);
+})(0);
+function drawHeart(c, x, y, s, col) {
+  c.save(); c.translate(x - s / 2, y - s / 2); c.scale(s / 24, s / 24); c.fillStyle = col; c.fill(new Path2D(HEART_D)); c.restore();
+}
+
+/* ============================== pantallas ============================== */
+function show(node) { $app.replaceChildren(node); scrollTo(0, 0); return node; }
+function hud(lv, lit) {
+  return `<div class="hud"><span class="lvl">NIVEL ${lv} DE ${N}</span>${constellation(lit, 40)}
+    <div class="bar">${Array.from({ length: N }, (_, i) => `<i class="${i < lit ? "on" : ""}"></i>`).join("")}</div></div>`;
+}
+function fail(root, lv, el) {
+  sfx.bad(); if (navigator.vibrate) navigator.vibrate(60);
+  (el || root).classList.remove("shake"); void (el || root).offsetWidth; (el || root).classList.add("shake");
+  const hint = root.querySelector(".hint"); if (hint) { hint.innerHTML = `<b>¡Casi!</b> Pista: ${CONFIG.pista[lv]}`; hint.classList.add("show"); }
+}
+
+function inicio() {
+  const saved = state.lv > 1;
+  const v = show(h(`<section class="view">
+    <p class="eyebrow" style="margin-top:10px">Un juego para ${CONFIG.nombre}</p>
+    <div class="center"><p style="font:600 26px var(--display);color:var(--blush)">Misión:</p><h1>Mi Corazón</h1></div>
+    <div class="center" style="position:relative">${constellation(0, 250, false)}
+      <svg width="56" height="56" viewBox="0 0 24 24" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);opacity:.3"><path d="${HEART_D}" fill="${COL.rose}"/></svg></div>
+    <p class="sub" style="font-size:16.5px;color:#fff">Nueve retos. Cada uno enciende una estrella. Cuando brillen todas, se abrirá un secreto.</p>
+    <div class="grow"></div>
+    <button class="btn" id="go">${saved ? (state.lv > N ? "Ir al candado" : `Continuar en el nivel ${state.lv}`) : "Comenzar misión"}</button>
+    ${saved ? `<button class="btn ghost" id="reset">Empezar de nuevo</button>` : ""}
+    <p class="center" style="font-size:12px;color:var(--ghost)">Hecho con amor (y código) por ${CONFIG.firma}</p>
+  </section>`));
+  v.querySelector("#go").onclick = () => { sfx.tap(); saved ? (state.lv > N ? candado() : nivel(state.lv)) : reglas(); };
+  if (saved) v.querySelector("#reset").onclick = () => { state = { lv: 1, digits: {} }; store.clear(); reglas(); };
+}
+
+function reglas() {
+  const items = [["star", "Hay 9 niveles: minijuegos, acertijos y preguntas sobre nosotros."],
+    ["const", "Cada nivel superado enciende una estrella."],
+    ["num", "Cuatro niveles te dan un número secreto."],
+    ["lock", "Con esos números abrirás el candado de mi carta."],
+    ["heart", "Si te equivocas, te doy una pista. Tu avance se guarda solo."]];
+  const icon = k => k === "const" ? constellation(5, 36) : k === "num" ? `<span style="display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--gold);color:var(--ink);font:700 17px var(--mono)">#</span>`
+    : k === "lock" ? `<svg width="30" height="32" viewBox="0 0 100 110"><path d="M26 52V34a24 24 0 0 1 48 0v18" fill="none" stroke="${COL.gold}" stroke-width="12"/><rect x="10" y="48" width="80" height="58" rx="12" fill="${COL.gold}"/></svg>` : sym(k, 30);
+  const v = show(h(`<section class="view"><h2 style="margin-top:24px">Cómo se juega</h2>
+    <div style="display:flex;flex-direction:column;gap:12px">${items.map(([k, t]) => `<div class="glass" style="display:flex;gap:14px;align-items:center;padding:14px 16px"><span style="flex:none;width:40px;display:grid;place-items:center">${icon(k)}</span><p style="font-size:15px">${t}</p></div>`).join("")}</div>
+    <div class="grow"></div><button class="btn" id="go">Estoy lista</button></section>`));
+  v.querySelector("#go").onclick = () => { sfx.tap(); nivel(1); };
+}
+
+function exito(lv) {
+  sfx.good();
+  const digit = CONFIG.nivelesConNumero.includes(lv) ? state.digits[lv] : null;
+  const v = show(h(`<section class="view">${hud(lv, lv)}
+    <p class="eyebrow" style="margin-top:14px">¡Nivel superado!</p>
+    <div class="center">${constellation(lv, 210, true)}</div>
+    <h2>Estrella ${lv} de ${N}</h2>
+    <p class="quote">${CONFIG.ok[lv]}</p>
+    ${digit ? `<div class="card digit"><div class="l">NÚMERO SECRETO</div><div class="n">${digit}</div></div><p class="sub" style="font-size:13.5px">Anótalo: es parte de la contraseña.</p>` : ""}
+    <div class="grow"></div><button class="btn" id="go">${lv < N ? (lv === N - 1 ? "Último nivel" : "Siguiente nivel") : "Continuar"}</button></section>`));
+  setTimeout(() => burst(innerWidth / 2, 230, 26), 150);
+  v.querySelector("#go").onclick = () => { sfx.tap(); lv < N ? nivel(lv + 1) : completa(); };
+}
+
+function win(lv) {
+  if (CONFIG.nivelesConNumero.includes(lv)) state.digits[lv] = CODE_DIGITS[CONFIG.nivelesConNumero.indexOf(lv)];
+  state.lv = Math.max(state.lv, lv + 1); store.set(state);
+  exito(lv);
+}
+/* dígito que entrega cada nivel de CONFIG.nivelesConNumero (lo escribe build.py) */
+const CODE_DIGITS = ["1", "4", "3", "3"];
+
+/* ============================== niveles ============================== */
+function nivel(lv) { state.lv = Math.max(state.lv, lv); store.set(state); ({ 1: n1, 2: quiz, 3: n3, 4: quiz, 5: n5, 6: n6, 7: n7, 8: quiz, 9: n9 })[lv](lv); }
+function frame(lv, title, sub, body) {
+  return show(h(`<section class="view">${hud(lv, lv - 1)}<div><h2 style="margin-top:14px">${title}</h2><p class="sub" style="margin-top:8px">${sub}</p></div>${body}<p class="hint"></p></section>`));
+}
+
+// 1 · Atrapa corazones
+function n1(lv) {
+  const GOAL = 12;
+  const v = frame(lv, "Atrapa mi corazón", `Atrapa ${GOAL} corazones con la canasta y esquiva los rotos.`,
+    `<div class="gstats"><span id="sc">0 / ${GOAL}</span><span id="lv"></span></div><div class="game" style="height:min(56dvh,460px)"><canvas></canvas>
+     <div class="overlay" id="ov"><div style="display:grid;gap:14px;justify-items:center">${sym("heart", 54)}<p>Arrastra el dedo para mover la canasta.</p><button class="btn" id="play">¡Vamos!</button></div></div></div>`);
+  const box = v.querySelector(".game"), cv = box.querySelector("canvas"), c = cv.getContext("2d"), ov = v.querySelector("#ov");
+  let W, H, run = false, items = [], score = 0, lives = 3, px = 0, tx = 0, spawn = 0, last = 0, shake = 0, raf, keys = {};
+  const size = () => { const d = Math.min(devicePixelRatio || 1, 2); W = box.clientWidth; H = box.clientHeight; cv.width = W * d; cv.height = H * d; c.setTransform(d, 0, 0, d, 0, 0); };
+  size(); px = tx = W / 2;
+  const stats = () => { v.querySelector("#sc").textContent = `${score} / ${GOAL}`; v.querySelector("#lv").innerHTML = Array.from({ length: 3 }, (_, i) => sym(i < lives ? "heart" : "broken", 20)).join(""); };
+  stats();
+  const move = e => { const r = cv.getBoundingClientRect(); tx = e.clientX - r.left; };
+  cv.addEventListener("pointerdown", move); cv.addEventListener("pointermove", move);
+  const kd = e => keys[e.key] = true, ku = e => keys[e.key] = false; addEventListener("keydown", kd); addEventListener("keyup", ku);
+  function start() { items = []; score = 0; lives = 3; spawn = 0; run = true; ov.style.display = "none"; stats(); last = performance.now(); raf = requestAnimationFrame(tick); }
+  v.querySelector("#play").onclick = start;
+  function basket(x, y) {
+    c.save(); c.translate(x, y);
+    c.fillStyle = "#c9913a"; c.beginPath(); c.moveTo(-36, -10); c.lineTo(36, -10); c.lineTo(28, 18); c.lineTo(-28, 18); c.closePath(); c.fill();
+    c.strokeStyle = "rgba(255,255,255,.25)"; c.lineWidth = 2; for (let i = -24; i <= 24; i += 12) { c.beginPath(); c.moveTo(i, -8); c.lineTo(i * .8, 16); c.stroke(); }
+    c.fillStyle = "#f5c16c"; c.beginPath(); c.roundRect(-40, -16, 80, 9, 4); c.fill(); c.restore();
+  }
+  function tick(now) {
+    if (!run || !document.body.contains(cv)) { removeEventListener("keydown", kd); removeEventListener("keyup", ku); return; }
+    const dt = Math.min(.033, (now - last) / 1000); last = now; c.clearRect(0, 0, W, H);
+    const dir = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0); if (dir) tx += dir * 420 * dt;
+    tx = Math.max(40, Math.min(W - 40, tx)); px += (tx - px) * Math.min(1, dt * 14);
+    const prog = score / GOAL; spawn -= dt;
+    if (spawn <= 0) { const bad = Math.random() < .18 + prog * .12; items.push({ x: 24 + Math.random() * (W - 48), y: -20, v: (140 + Math.random() * 90) * (1 + prog * .8), bad, r: (Math.random() - .5) * 2, a: 0, gold: !bad && Math.random() < .12 }); spawn = .75 - prog * .3; }
+    const by = H - 34;
+    for (const it of items) {
+      it.y += it.v * dt; it.a += it.r * dt;
+      if (!it.hit && Math.abs(it.x - px) < 40 && Math.abs(it.y - by) < 22) {
+        it.hit = true;
+        if (it.bad) { lives--; shake = .3; sfx.bad(); if (navigator.vibrate) navigator.vibrate(50); }
+        else { score += it.gold ? 2 : 1; sfx.catch(); const r = cv.getBoundingClientRect(); burst(r.left + it.x, r.top + it.y, 5); }
+        stats();
+      }
+      c.save(); c.translate(it.x, it.y); c.rotate(it.a);
+      c.translate(-15, -15); c.scale(30 / 24, 30 / 24); c.fillStyle = it.bad ? COL.ghost : it.gold ? COL.gold : COL.rose; c.fill(new Path2D(HEART_D));
+      if (it.bad) { c.strokeStyle = "#3b1240"; c.lineWidth = 1.6; c.stroke(new Path2D("M12 7.6 10.4 11l2.6 2-1.8 3.4")); }
+      c.restore();
+    }
+    items = items.filter(i => !i.hit && i.y < H + 30);
+    basket(px + (shake > 0 ? (Math.random() - .5) * 10 : 0), by); shake -= dt;
+    if (score >= GOAL) { run = false; setTimeout(() => win(lv), 350); return; }
+    if (lives <= 0) { run = false; fail(v, lv, box); ov.style.display = "grid"; ov.innerHTML = `<div style="display:grid;gap:14px;justify-items:center">${sym("broken", 54)}<p>Se rompieron 3 corazones.</p><button class="btn" id="again">Intentar de nuevo</button></div>`; ov.querySelector("#again").onclick = start; return; }
+    raf = requestAnimationFrame(tick);
+  }
+}
+
+// 2, 4, 8 · Preguntas sobre ustedes
+function quiz(lv) {
+  const q = CONFIG.preguntas[lv];
+  const opts = shuffle([[q.bien, true], ...q.mal.map(m => [m, false])]);
+  const v = frame(lv, q.titulo, q.sub, `<div class="glass"><p style="font:700 22px/1.3 var(--display);text-align:center">${q.q}</p></div>
+    <div class="opts">${opts.map(([t, ok], i) => `<button class="opt" data-i="${i}">${t}</button>`).join("")}</div>`);
+  v.querySelectorAll(".opt").forEach(b => b.onclick = () => {
+    if (opts[+b.dataset.i][1]) { b.classList.add("good"); burstAt(b, 14); setTimeout(() => win(lv), 500); } else fail(v, lv, b);
+  });
+}
+
+// 3 · Secuencia
+function n3(lv) {
+  const seq = [["heart", 26], ["star", 30], ["heart", 38], ["star", 30], ["heart", 50]];
+  const opts = shuffle([[["star", 30], true], [["heart", 26], false], [["star", 46], false]]);
+  const v = frame(lv, "Completa la secuencia", "¿Qué figura sigue? Mira bien el patrón.",
+    `<div class="glass seq">${seq.map(([k, s]) => sym(k, s)).join("")}<div class="qbox">?</div></div>
+     <p class="center" style="font-weight:800;font-size:12px;letter-spacing:.18em;color:var(--blush)">ELIGE UNA OPCIÓN</p>
+     <div class="opts row">${opts.map(([[k, s]], i) => `<button class="opt white" data-i="${i}" style="height:110px">${sym(k, s)}</button>`).join("")}</div>`);
+  v.querySelectorAll(".opt").forEach(b => b.onclick = () => {
+    if (opts[+b.dataset.i][1]) { v.querySelector(".qbox").innerHTML = sym("star", 30); burstAt(b, 14); setTimeout(() => win(lv), 600); } else fail(v, lv, b);
+  });
+}
+
+// 5 · El camino correcto
+function n5(lv) {
+  const X = [50, 150, 250], ends = ["broken", "ghoststar", "heart"];
+  const paths = [ // A→corazón, B→roto, C→estrella
+    "M50 40 C 300 95, -20 190, 250 262", "M150 40 C -30 90, 310 170, 50 262", "M250 40 C 60 110, 330 215, 150 262"];
+  const v = frame(lv, "El camino correcto", "Sigue las líneas. ¿Qué letra llega al corazón?",
+    `<div class="glass" style="padding:10px"><svg viewBox="0 0 300 300" width="100%" style="display:block">
+      ${paths.map((d, i) => `<path id="p${i}" d="${d}" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="6" stroke-linecap="round"/>`).join("")}
+      ${X.map((x, i) => `<g><rect x="${x - 20}" y="12" width="40" height="36" rx="10" fill="${COL.gold}"/><text x="${x}" y="38" text-anchor="middle" font-family="Fraunces,Georgia,serif" font-weight="700" font-size="22" fill="#2e0f2a">${"ABC"[i]}</text></g>`).join("")}
+      ${X.map((x, i) => `<g transform="translate(${x - 18} 258)">${SYM[ends[i]].replace(/<(path|polygon|ellipse)/g, '<$1 transform="scale(1.5)"')}</g>`).join("")}
+    </svg></div>
+    <div class="opts row">${"ABC".split("").map((l, i) => `<button class="opt" data-i="${i}" style="font:700 24px var(--display)">${l}</button>`).join("")}</div>`);
+  v.querySelectorAll(".opt").forEach(b => b.onclick = () => {
+    if (+b.dataset.i === 0) { const p = v.querySelector("#p0"); p.setAttribute("stroke", COL.gold); p.setAttribute("stroke-opacity", 1); p.setAttribute("stroke-width", 8);
+      const L = p.getTotalLength(); p.style.strokeDasharray = L; p.animate([{ strokeDashoffset: L }, { strokeDashoffset: 0 }], { duration: 900 }); setTimeout(() => win(lv), 1100); }
+    else fail(v, lv, b);
+  });
+}
+
+// 6 · Mensaje cifrado
+function n6(lv) {
+  const KEY = [["heart", "T"], ["star", "E"], ["circle", "A"], ["diamond", "M"], ["triangle", "O"], ["square", "R"], ["ring", "S"], ["plus", "I"]];
+  const opts = shuffle([["TE AMO", true], ["ME ATO", false], ["TOMATE", false]]);
+  const v = frame(lv, "Mensaje cifrado", "Usa la clave para descifrar lo que te escribí.",
+    `<div class="card"><p class="eyebrow" style="color:var(--muted);margin-bottom:14px">Clave</p><div class="keygrid">${KEY.map(([k, l]) => `<div>${sym(k, 24)}= ${l}</div>`).join("")}</div></div>
+     <div class="glass msg">${["heart", "star", null, "circle", "diamond", "triangle"].map(k => k ? sym(k, 34) : '<span class="sp"></span>').join("")}</div>
+     <div class="opts row">${opts.map(([t], i) => `<button class="opt" data-i="${i}" style="font:700 16px var(--mono);padding:18px 6px">${t}</button>`).join("")}</div>`);
+  v.querySelectorAll(".opt").forEach(b => b.onclick = () => { if (opts[+b.dataset.i][1]) { b.classList.add("good"); burstAt(b, 18); setTimeout(() => win(lv), 600); } else fail(v, lv, b); });
+}
+
+// 7 · Memoria real (las figuras se esconden)
+function n7(lv) {
+  const MEM = ["heart", "diamond", "star", "circle", "triangle"];
+  const v = frame(lv, "Memoriza", "Mira el orden de estas 5 figuras. En unos segundos se van a esconder.",
+    `<div class="glass" style="display:grid;gap:16px"><div class="slots" id="sl"></div><div class="timer" id="tm"></div></div>
+     <div class="slots" id="pal" style="flex-wrap:wrap"></div><button class="btn ghost" id="again" style="display:none">Verlas otra vez</button>`);
+  const sl = v.querySelector("#sl"), pal = v.querySelector("#pal"), tm = v.querySelector("#tm"), again = v.querySelector("#again");
+  async function round() {
+    again.style.display = "none"; pal.innerHTML = ""; v.querySelector(".hint").classList.remove("show");
+    sl.innerHTML = MEM.map(k => `<div class="slot">${sym(k, 34)}</div>`).join("");
+    tm.style.visibility = "visible"; tm.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: 4500, fill: "forwards" });
+    await wait(4500); if (!document.body.contains(v)) return;
+    tm.style.visibility = "hidden"; sl.innerHTML = MEM.map(() => `<div class="slot"></div>`).join("");
+    let pos = 0;
+    pal.innerHTML = shuffle(MEM).map(k => `<button class="opt white" data-k="${k}" style="width:62px;height:62px;min-height:0;padding:0">${sym(k, 34)}</button>`).join("");
+    pal.querySelectorAll("button").forEach(b => b.onclick = () => {
+      if (b.dataset.k === MEM[pos]) { sfx.tap(); sl.children[pos].innerHTML = sym(b.dataset.k, 34); b.style.visibility = "hidden"; pos++;
+        if (pos === MEM.length) { burstAt(sl, 20); setTimeout(() => win(lv), 600); } }
+      else { fail(v, lv, sl); pal.innerHTML = ""; again.style.display = "block"; }
+    });
+  }
+  again.onclick = round; round();
+}
+
+// 9 · Focos binarios (interactivo)
+function n9(lv) {
+  const vals = [16, 8, 4, 2, 1], on = [0, 0, 0, 0, 0];
+  const v = frame(lv, "Los focos", "Soy programador, así que este es mi idioma. Enciende los focos que sumen exactamente 19.",
+    `<p class="center" style="font-size:13px;color:var(--blush)">Toca un foco para encenderlo o apagarlo.</p><div class="glass" style="display:grid;grid-template-columns:minmax(0,1fr);gap:18px;padding:22px 14px"><div class="bulbs">${vals.map((n, i) => `<button class="bulb" data-i="${i}"><span class="g">${n}</span><span class="base"></span></button>`).join("")}</div>
+     <div class="sum"><b id="s">0</b> <span>/ 19</span></div></div>`);
+  const out = v.querySelector("#s");
+  v.querySelectorAll(".bulb").forEach(b => b.onclick = () => {
+    const i = +b.dataset.i; on[i] ^= 1; b.classList.toggle("on", !!on[i]); sfx.tap();
+    const s = vals.reduce((a, n, k) => a + n * on[k], 0); out.textContent = s;
+    if (s === 19) { v.querySelectorAll(".bulb").forEach(x => x.disabled = true); burstAt(out, 24); setTimeout(() => win(lv), 900); }
+    else if (s > 19) fail(v, lv, out);
+  });
+}
+
+/* ============================== final ============================== */
+function completa() {
+  const v = show(h(`<section class="view"><p class="eyebrow" style="margin-top:24px">Constelación completa</p>
+    <div class="center" style="position:relative">${constellation(N, 260, false, true)}</div>
+    <p class="sub" style="font-size:16.5px;color:#fff">Encendiste las 9 estrellas. Solo falta abrir el candado con tus 4 números secretos.</p>
+    <div class="grow"></div><button class="btn" id="go">Ir al candado</button></section>`));
+  burst(innerWidth / 2, 260, 40); sfx.good();
+  v.querySelector("#go").onclick = () => { sfx.tap(); candado(); };
+}
+
+function candado() {
+  let code = "";
+  const got = CONFIG.nivelesConNumero.map(l => state.digits[l]).filter(Boolean);
+  const v = show(h(`<section class="view" style="gap:16px"><div class="center" style="margin-top:14px">${padlock()}</div>
+    <h2>El candado</h2><p class="sub">Escribe tus 4 números secretos, en el orden en que los ganaste.</p>
+    <div class="slots4" id="sl">${"<div></div>".repeat(4)}</div><p class="hint"></p>
+    <div class="keys">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "⌫", 0, ""].map(k => k === "" ? "<span></span>" : `<button class="key" data-k="${k}">${k}</button>`).join("")}</div></section>`));
+  const sl = v.querySelector("#sl"), hint = v.querySelector(".hint");
+  const draw = () => [...sl.children].forEach((d, i) => { d.textContent = code[i] ? "•" : ""; d.className = code[i] ? "f" : ""; });
+  v.querySelectorAll(".key").forEach(b => b.onclick = () => {
+    const k = b.dataset.k; sfx.tap();
+    if (k === "⌫") code = code.slice(0, -1); else if (code.length < 4) code += k;
+    draw();
+    if (code.length === 4) {
+      if (fnv(code + "|check") === CHECK) { abierto(code); }
+      else { sfx.bad(); sl.classList.remove("shake"); void sl.offsetWidth; sl.classList.add("shake");
+        hint.innerHTML = got.length === 4 ? `<b>Código incorrecto.</b> Tus números fueron los de los niveles 2, 4, 6 y 8.` : `<b>Código incorrecto.</b> Son los números de los niveles 2, 4, 6 y 8.`;
+        hint.classList.add("show"); setTimeout(() => { code = ""; draw(); }, 450); }
+    }
+  });
+}
+
+let S = null; // secreto descifrado
+function abierto(code) {
+  S = decrypt(code); sfx.good(); floatOn = true;
+  const v = show(h(`<section class="view"><div class="center" style="margin-top:18px">${padlock()}</div>
+    <p class="eyebrow">¡Candado abierto!</p><div class="big">${code}</div>
+    <div class="glass center" style="display:grid;gap:8px">${S.candado.map((l, i) => `<p style="${i === 0 ? "font-weight:800" : "color:var(--blush);font-size:15px"}">${l}</p>`).join("")}
+      <p class="quote" style="color:var(--gold);margin-top:6px">${S.frase}</p></div>
+    <div class="grow"></div><button class="btn" id="go">Abrir mi regalo</button></section>`));
+  requestAnimationFrame(() => setTimeout(() => v.querySelector(".lock").classList.add("open"), 200));
+  burst(innerWidth / 2, 150, 30);
+  v.querySelector("#go").onclick = () => { sfx.tap(); regalo(); };
+}
+
+function regalo() {
+  let taps = 0;
+  const v = show(h(`<section class="view"><p class="eyebrow" style="margin-top:40px">Tu premio</p><p class="sub" id="gh">Toca el regalo 3 veces para abrirlo</p>
+    <div class="grow"></div>
+    <button class="gift" id="g" aria-label="Regalo"><svg width="220" height="220" viewBox="0 0 220 220">
+      <rect x="30" y="90" width="160" height="120" rx="12" fill="#ff5a8f"/><rect x="18" y="68" width="184" height="40" rx="10" fill="#e23d74"/>
+      <rect x="96" y="68" width="28" height="142" fill="${COL.gold}"/>
+      <ellipse cx="80" cy="54" rx="34" ry="14" transform="rotate(25 80 54)" fill="${COL.gold}"/><ellipse cx="140" cy="54" rx="34" ry="14" transform="rotate(-25 140 54)" fill="${COL.gold}"/><circle cx="110" cy="64" r="12" fill="${COL.gold}"/></svg></button>
+    <div class="grow"></div></section>`));
+  const g = v.querySelector("#g");
+  g.onclick = () => {
+    taps++; g.classList.remove("hit"); void g.offsetWidth; g.classList.add("hit"); burstAt(g, 8 + taps * 8); tone(500 + taps * 150, .15, "triangle", .07);
+    v.querySelector("#gh").textContent = taps === 1 ? "¡Otra vez!" : taps === 2 ? "¡Una más!" : "";
+    if (taps === 3) { sfx.good(); for (let i = 0; i < 4; i++) setTimeout(() => burst(Math.random() * innerWidth, Math.random() * innerHeight * .6, 22), i * 160); setTimeout(carta, 1200); }
+  };
+}
+
+function carta() {
+  const v = show(h(`<section class="view"><article class="letter"><p class="to">PARA ${CONFIG.nombre.toUpperCase()}</p><div class="txt typing" id="t"></div><p class="sign" id="sg">— ${S.firma}</p></article>
+    <button class="seal" id="seal" aria-label="Sello secreto">${sym("heart", 26)}</button><p class="sealtxt" id="st">P.D. el sello esconde algo</p></section>`));
+  const t = v.querySelector("#t"), txt = S.carta; let i = 0, timer;
+  const finish = () => { clearInterval(timer); t.textContent = txt; t.classList.remove("typing"); v.querySelector("#sg").style.opacity = 1;
+    v.querySelector("#seal").classList.add("show"); v.querySelector("#st").style.opacity = 1; };
+  timer = setInterval(() => { t.textContent = txt.slice(0, ++i); if (i % 3 === 0) tone(1200, .015, "square", .012); if (i >= txt.length) finish(); }, 38);
+  v.querySelector(".letter").onclick = () => { if (t.classList.contains("typing")) finish(); };
+  v.querySelector("#seal").onclick = e => { e.stopPropagation(); sfx.good(); pd(); };
+}
+
+function pd() {
+  const v = show(h(`<section class="view"><p class="eyebrow" style="margin-top:40px">Secreto desbloqueado</p><div class="grow"></div>
+    <div class="ticket"><p class="eyebrow" style="color:var(--muted)">${S.pd[0]}</p><h3>${S.pd[1]}<br>${S.pd[2]}</h3>${sym("heart", 32)}<br><small>${S.pd[3]}</small></div>
+    <p class="sub" style="font-size:14px">Tómale captura para canjearlo.</p><div class="grow"></div>
+    <button class="btn" id="h">Ver nuestra historia</button><button class="btn ghost" id="b">Volver a la carta</button></section>`));
+  burstAt(v.querySelector(".ticket"), 24);
+  v.querySelector("#h").onclick = historia; v.querySelector("#b").onclick = carta;
+}
+
+function historia() {
+  const v = show(h(`<section class="view"><p class="eyebrow" style="margin-top:24px">Nuestra historia</p><h2>Nivel por nivel</h2>
+    <div class="tl" style="margin-top:14px">${S.historia.map(([d, t, p], i) => `<div class="ev"><span class="dot">${sym(i === S.historia.length - 1 ? "heart" : "star", 20)}</span><p class="d">${d}</p><h4>${t}</h4><p>${p}</p></div>`).join("")}</div>
+    <div class="grow"></div><button class="btn" id="c">Leer la carta otra vez</button><button class="btn ghost" id="r">Volver al inicio</button></section>`));
+  v.querySelector("#c").onclick = carta; v.querySelector("#r").onclick = () => { floatOn = false; inicio(); };
+}
+
+inicio();
+</script>
+</body>
+</html>
